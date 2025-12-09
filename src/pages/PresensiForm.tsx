@@ -554,6 +554,21 @@ export const PresensiForm = () => {
                     disabled={!isIdChecked || idNeedsRecheck}
                     className="bg-background"
                   />
+                  {/* Duration info */}
+                  {formData.tanggal && formData.tanggalEnd && (() => {
+                    const start = new Date(formData.tanggal);
+                    const end = new Date(formData.tanggalEnd);
+                    const diffTime = end.getTime() - start.getTime();
+                    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 to include both days
+                    if (diffDays > 0) {
+                      return (
+                        <p className="text-sm text-muted-foreground">
+                          Durasi: <span className="font-medium text-primary">{diffDays} hari</span>
+                        </p>
+                      );
+                    }
+                    return null;
+                  })()}
                 </div>
               ) : (
                 <div className="space-y-2">
