@@ -5,7 +5,7 @@ import "@tensorflow/tfjs-backend-webgl";
 import { useIsMobile } from "./use-mobile";
 import { CAMERA_CONFIG } from "@/config/camera";
 
-export const useCamera = (location?: string) => {
+export const useCamera = (location?: string, skipFaceDetection?: boolean) => {
   const [mode, setMode] = useState<"camera" | "preview">("camera");
 
   const [cameraActive, setCameraActive] = useState(false);
@@ -13,6 +13,7 @@ export const useCamera = (location?: string) => {
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [faceDetected, setFaceDetected] = useState(false);
   const [model, setModel] = useState<any>(null);
+  const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -50,6 +51,12 @@ export const useCamera = (location?: string) => {
           throw new Error("Camera API not available");
         }
 
+        // Stop existing stream before starting new one
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach((track) => track.stop());
+          streamRef.current = null;
+        }
+
         // FIX: Use explicit width/height constraints to force portrait mode
         const cameraConstraints = isMobile
           ? CAMERA_CONFIG.mobile
@@ -57,7 +64,7 @@ export const useCamera = (location?: string) => {
 
         streamRef.current = await navigator.mediaDevices.getUserMedia({
           video: {
-            facingMode: "user",
+            facingMode: facingMode,
             width: cameraConstraints.width,
             height: cameraConstraints.height,
             // Additional constraint to ensure portrait
@@ -92,10 +99,20 @@ export const useCamera = (location?: string) => {
       setCameraActive(false);
       setFaceDetected(false);
     };
-  }, [cameraModalOpen, mode]);
+  }, [cameraModalOpen, mode, facingMode]);
 
-  // Face detection loop
+  const flipCamera = useCallback(() => {
+    setFacingMode((prev) => (prev === "user" ? "environment" : "user"));
+  }, []);
+
+  // Face detection loop (only when not skipping)
   useEffect(() => {
+    // Skip face detection if skipFaceDetection is true
+    if (skipFaceDetection) {
+      setFaceDetected(true); // Always allow capture
+      return;
+    }
+
     let rafId: number;
     let running = true;
 
@@ -196,7 +213,7 @@ export const useCamera = (location?: string) => {
       running = false;
       if (rafId) cancelAnimationFrame(rafId);
     };
-  }, [cameraModalOpen, model]);
+  }, [cameraModalOpen, model, skipFaceDetection]);
 
   // Fungsi helper untuk membungkus teks panjang
   function wrapText(
@@ -239,14 +256,25 @@ export const useCamera = (location?: string) => {
 
     // === Gambar video ===
     ctx.save();
-    ctx.scale(-1, 1);
-    ctx.drawImage(
-      video,
-      -captureCanvas.width,
-      0,
-      captureCanvas.width,
-      captureCanvas.height
-    );
+    // Only mirror for front camera (user)
+    if (facingMode === "user") {
+      ctx.scale(-1, 1);
+      ctx.drawImage(
+        video,
+        -captureCanvas.width,
+        0,
+        captureCanvas.width,
+        captureCanvas.height
+      );
+    } else {
+      ctx.drawImage(
+        video,
+        0,
+        0,
+        captureCanvas.width,
+        captureCanvas.height
+      );
+    }
     ctx.restore(); // reset biar teks tidak ikut mirror
 
     // === Overlay teks ===
@@ -302,7 +330,7 @@ export const useCamera = (location?: string) => {
 
     setCapturedImage(imageData);
     setMode("preview");
-  }, [isMobile, location]);
+  }, [isMobile, location, facingMode]);
 
   const retakePhoto = useCallback(() => {
     setCapturedImage(null);
@@ -327,5 +355,7 @@ export const useCamera = (location?: string) => {
     retakePhoto,
     mode,
     setMode,
+    facingMode,
+    flipCamera,
   };
 };

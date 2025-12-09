@@ -6,7 +6,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Check, X, RefreshCw, CameraIcon } from "lucide-react";
+import { Check, X, RefreshCw, CameraIcon, SwitchCamera } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface CameraModalProps {
@@ -21,6 +21,10 @@ interface CameraModalProps {
   imageUrl: string | null;
   onRetake: () => void;
   mode: "camera" | "preview";
+  // New props for Sakit/Izin
+  presensiType?: string;
+  facingMode?: "user" | "environment";
+  onFlipCamera?: () => void;
 }
 
 export const CameraModal = ({
@@ -35,7 +39,28 @@ export const CameraModal = ({
   imageUrl,
   onRetake,
   mode,
+  presensiType,
+  facingMode = "user",
+  onFlipCamera,
 }: CameraModalProps) => {
+  const isSakitOrIzin = presensiType === "Sakit" || presensiType === "Izin";
+  
+  const getTitle = () => {
+    if (mode === "preview") return "Preview Foto";
+    if (presensiType === "Sakit") return "Foto Surat Sakit";
+    if (presensiType === "Izin") return "Foto Surat Izin";
+    return "Ambil Foto Presensi";
+  };
+
+  const getDescription = () => {
+    if (presensiType === "Sakit") {
+      return "Ambil foto surat keterangan sakit dari dokter atau bukti pendukung lainnya";
+    }
+    if (presensiType === "Izin") {
+      return "Ambil foto surat izin atau dokumen pendukung untuk keperluan izin Anda";
+    }
+    return "Pastikan wajah Anda terlihat jelas dalam frame kamera";
+  };
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
@@ -51,12 +76,10 @@ export const CameraModal = ({
           <DialogHeader className="pl-2 md:p-0">
             <DialogTitle className="flex items-center gap-2">
               <CameraIcon className="h-5 w-5" />
-              {mode === "preview"
-                ? "Preview Foto Presensi"
-                : "Ambil Foto Presensi"}
+              {getTitle()}
             </DialogTitle>
             <DialogDescription className="flex">
-              Pastikan wajah Anda terlihat jelas dalam frame kamera
+              {getDescription()}
             </DialogDescription>
           </DialogHeader>
 
@@ -83,7 +106,10 @@ export const CameraModal = ({
                   ref={videoRef}
                   playsInline
                   muted
-                  className="w-full h-full object-cover md:rounded-lg scale-x-[-1]"
+                  className={cn(
+                    "w-full h-full object-cover md:rounded-lg",
+                    facingMode === "user" && "scale-x-[-1]"
+                  )}
                 />
 
                 <canvas
@@ -91,7 +117,19 @@ export const CameraModal = ({
                   className="absolute inset-0 pointer-events-none"
                 />
 
-                {isNeedDetected && (
+                {/* Flip camera button for Sakit/Izin */}
+                {isSakitOrIzin && onFlipCamera && (
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={onFlipCamera}
+                    className="absolute top-2 right-2 bg-black/50 border-white/30 text-white hover:bg-black/70 hover:text-white"
+                  >
+                    <SwitchCamera className="h-5 w-5" />
+                  </Button>
+                )}
+
+                {isNeedDetected && !isSakitOrIzin && (
                   <div className="absolute top-2 left-1/2 -translate-x-1/2">
                     {faceDetected ? (
                       <span className="bg-green-600 text-white text-xs px-3 py-1 rounded-full shadow-md">
@@ -148,11 +186,11 @@ export const CameraModal = ({
               <>
                 <Button
                   onClick={onCapture}
-                  disabled={!faceDetected && isNeedDetected}
+                  disabled={!faceDetected && isNeedDetected && !isSakitOrIzin}
                   className="flex-1 bg-honda-red hover:bg-honda-red-dark"
                 >
                   <CameraIcon className="w-4 h-4 mr-2" />
-                  Ambil Foto
+                  {isSakitOrIzin ? "Ambil Foto Dokumen" : "Ambil Foto"}
                 </Button>
                 <Button variant="outline" onClick={onClose}>
                   <X className="w-4 h-4 mr-2" />
