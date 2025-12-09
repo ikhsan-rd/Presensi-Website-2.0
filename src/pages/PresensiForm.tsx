@@ -38,6 +38,8 @@ export const PresensiForm = () => {
     nama: "",
     departemen: "",
     ...getTanggalSekarang(),
+    tanggalEnd: "", // For Sakit/Izin date range
+    tanggalEndDisplay: "", // For display
     jam: new Date().toLocaleTimeString("en-GB", { hour12: false }),
     presensi: "",
     longitude: "",
@@ -241,13 +243,16 @@ export const PresensiForm = () => {
       const tempFileName = "temp.jpg"; // Placeholder, will be replaced in uploadPhoto
 
       // 1. Submit presensi + sertakan photoFileId
+      const isSakitIzin = formData.presensi === "Sakit" || formData.presensi === "Izin";
+      
       const response = await submitPresensi({
         id: formData.id,
         nama: formData.nama,
         departemen: formData.departemen,
         presensi: formData.presensi,
         tanggal: formData.tanggal,
-        jam: formData.jam,
+        tanggalEnd: isSakitIzin && formData.tanggalEnd ? formData.tanggalEnd : undefined,
+        jam: isSakitIzin ? undefined : formData.jam, // Jam not needed for Sakit/Izin
         lokasi: formData.lokasi,
         urlMaps: formData.urlMaps,
         latitude: formData.latitude ? parseFloat(formData.latitude) : undefined,
@@ -308,6 +313,8 @@ export const PresensiForm = () => {
         nama: "",
         departemen: "",
         ...getTanggalSekarang(),
+        tanggalEnd: "",
+        tanggalEndDisplay: "",
         jam: new Date().toLocaleTimeString("en-GB", { hour12: false }),
         presensi: "",
         longitude: "",
@@ -341,6 +348,7 @@ export const PresensiForm = () => {
     if (!formData.presensi || formData.presensi.trim() === "") return false;
     if (!formData.lokasi || !formData.uuid || !formData.fingerprint)
       return false;
+    // For Sakit/Izin, tanggalEnd is optional (single day if not set)
     return true;
   };
 
@@ -507,7 +515,9 @@ export const PresensiForm = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">
-                  Tanggal
+                  {formData.presensi === "Sakit" || formData.presensi === "Izin" 
+                    ? "Tanggal Mulai" 
+                    : "Tanggal"}
                 </label>
                 <Input
                   value={formData.tanggalDisplay}
@@ -516,17 +526,48 @@ export const PresensiForm = () => {
                   className="bg-muted"
                 />
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">
-                  Jam
-                </label>
-                <Input
-                  value={formData.jam}
-                  readOnly
-                  disabled={!isIdChecked || idNeedsRecheck}
-                  className="bg-muted"
-                />
-              </div>
+              
+              {/* Tanggal Selesai - Only for Sakit/Izin */}
+              {(formData.presensi === "Sakit" || formData.presensi === "Izin") ? (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground">
+                    Tanggal Selesai
+                  </label>
+                  <Input
+                    type="date"
+                    value={formData.tanggalEnd}
+                    onChange={(e) => {
+                      const dateValue = e.target.value;
+                      // Format for display (DD-MM-YYYY)
+                      let displayValue = "";
+                      if (dateValue) {
+                        const [year, month, day] = dateValue.split("-");
+                        displayValue = `${day}-${month}-${year}`;
+                      }
+                      setFormData({
+                        ...formData,
+                        tanggalEnd: dateValue,
+                        tanggalEndDisplay: displayValue,
+                      });
+                    }}
+                    min={formData.tanggal} // Can't be before start date
+                    disabled={!isIdChecked || idNeedsRecheck}
+                    className="bg-background"
+                  />
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground">
+                    Jam
+                  </label>
+                  <Input
+                    value={formData.jam}
+                    readOnly
+                    disabled={!isIdChecked || idNeedsRecheck}
+                    className="bg-muted"
+                  />
+                </div>
+              )}
             </div>
 
             {/* Waktu Radio */}
@@ -536,13 +577,16 @@ export const PresensiForm = () => {
               </Label>
               <RadioGroup
                 value={formData.presensi}
-                onValueChange={(value) => {
-                  setFormData({
+              onValueChange={(value) => {
+                  // Reset tanggalEnd when switching away from Sakit/Izin
+                  const newFormData = {
                     ...formData,
                     presensi: value,
-                  });
+                    tanggalEnd: (value === "Sakit" || value === "Izin") ? formData.tanggalEnd : "",
+                    tanggalEndDisplay: (value === "Sakit" || value === "Izin") ? formData.tanggalEndDisplay : "",
+                  };
+                  setFormData(newFormData);
                   setIsNeedDetected(value === "Hadir" || value === "Pulang");
-                  console.log(isNeedDetected);
                 }}
                 className="grid grid-cols-1 md:grid-cols-2 items-center justify-around"
                 disabled={isLoading || !isIdChecked || idNeedsRecheck}
