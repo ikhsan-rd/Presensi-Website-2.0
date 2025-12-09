@@ -73,6 +73,8 @@ export const PresensiForm = () => {
 
   const navigate = useNavigate();
 
+  const isSakitOrIzin = formData.presensi === "Sakit" || formData.presensi === "Izin";
+  
   const {
     cameraModalOpen,
     setCameraModalOpen,
@@ -83,7 +85,9 @@ export const PresensiForm = () => {
     capturePhoto,
     retakePhoto,
     mode,
-  } = useCamera(formData.lokasi);
+    facingMode,
+    flipCamera,
+  } = useCamera(formData.lokasi, isSakitOrIzin);
 
   const { getLocationAndDecode } = useLocation();
   const { getDeviceIdentity } = useDeviceIdentity();
@@ -751,6 +755,9 @@ export const PresensiForm = () => {
         imageUrl={capturedImage || ""}
         onRetake={retakePhoto}
         mode={mode}
+        presensiType={formData.presensi}
+        facingMode={facingMode}
+        onFlipCamera={flipCamera}
       />
 
       {/* Notification Modal */}
