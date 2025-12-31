@@ -20,10 +20,10 @@ import {
   LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { NotificationDialog } from "@/components/NotificationDialog";
 import { LoadingScreen } from "@/components/LoadingScreen";
 import { LoginModal } from "@/components/LoginModal";
 import { CameraModal } from "@/components/CameraModal";
-import { NotificationDialog } from "@/components/NotificationDialog";
 import { useCamera } from "@/hooks/useCamera";
 import { useLocation } from "@/hooks/useLocation";
 import { useUserData } from "@/hooks/useUserData";
@@ -73,8 +73,9 @@ export const PresensiForm = () => {
 
   const navigate = useNavigate();
 
-  const isSakitOrIzin = formData.presensi === "Sakit" || formData.presensi === "Izin";
-  
+  const isSakitOrIzin =
+    formData.presensi === "Sakit" || formData.presensi === "Izin";
+
   const {
     cameraModalOpen,
     setCameraModalOpen,
@@ -247,15 +248,17 @@ export const PresensiForm = () => {
       const tempFileName = "temp.jpg"; // Placeholder, will be replaced in uploadPhoto
 
       // 1. Submit presensi + sertakan photoFileId
-      const isSakitIzin = formData.presensi === "Sakit" || formData.presensi === "Izin";
-      
+      const isSakitIzin =
+        formData.presensi === "Sakit" || formData.presensi === "Izin";
+
       const response = await submitPresensi({
         id: formData.id,
         nama: formData.nama,
         departemen: formData.departemen,
         presensi: formData.presensi,
         tanggal: formData.tanggal,
-        tanggalEnd: isSakitIzin && formData.tanggalEnd ? formData.tanggalEnd : undefined,
+        tanggalEnd:
+          isSakitIzin && formData.tanggalEnd ? formData.tanggalEnd : undefined,
         jam: isSakitIzin ? undefined : formData.jam, // Jam not needed for Sakit/Izin
         lokasi: formData.lokasi,
         urlMaps: formData.urlMaps,
@@ -519,8 +522,8 @@ export const PresensiForm = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">
-                  {formData.presensi === "Sakit" || formData.presensi === "Izin" 
-                    ? "Tanggal Mulai" 
+                  {formData.presensi === "Sakit" || formData.presensi === "Izin"
+                    ? "Tanggal Mulai"
                     : "Tanggal"}
                 </label>
                 <Input
@@ -530,9 +533,9 @@ export const PresensiForm = () => {
                   className="bg-muted"
                 />
               </div>
-              
+
               {/* Tanggal Selesai - Only for Sakit/Izin */}
-              {(formData.presensi === "Sakit" || formData.presensi === "Izin") ? (
+              {formData.presensi === "Sakit" || formData.presensi === "Izin" ? (
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">
                     Tanggal Selesai
@@ -559,20 +562,26 @@ export const PresensiForm = () => {
                     className="bg-background"
                   />
                   {/* Duration info */}
-                  {formData.tanggal && formData.tanggalEnd && (() => {
-                    const start = new Date(formData.tanggal);
-                    const end = new Date(formData.tanggalEnd);
-                    const diffTime = end.getTime() - start.getTime();
-                    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 to include both days
-                    if (diffDays > 0) {
-                      return (
-                        <p className="text-sm text-muted-foreground">
-                          Durasi: <span className="font-medium text-primary">{diffDays} hari</span>
-                        </p>
-                      );
-                    }
-                    return null;
-                  })()}
+                  {formData.tanggal &&
+                    formData.tanggalEnd &&
+                    (() => {
+                      const start = new Date(formData.tanggal);
+                      const end = new Date(formData.tanggalEnd);
+                      const diffTime = end.getTime() - start.getTime();
+                      const diffDays =
+                        Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 to include both days
+                      if (diffDays > 0) {
+                        return (
+                          <p className="text-sm text-muted-foreground">
+                            Durasi:{" "}
+                            <span className="font-medium text-primary">
+                              {diffDays} hari
+                            </span>
+                          </p>
+                        );
+                      }
+                      return null;
+                    })()}
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -596,13 +605,19 @@ export const PresensiForm = () => {
               </Label>
               <RadioGroup
                 value={formData.presensi}
-              onValueChange={(value) => {
+                onValueChange={(value) => {
                   // Reset tanggalEnd when switching away from Sakit/Izin
                   const newFormData = {
                     ...formData,
                     presensi: value,
-                    tanggalEnd: (value === "Sakit" || value === "Izin") ? formData.tanggalEnd : "",
-                    tanggalEndDisplay: (value === "Sakit" || value === "Izin") ? formData.tanggalEndDisplay : "",
+                    tanggalEnd:
+                      value === "Sakit" || value === "Izin"
+                        ? formData.tanggalEnd
+                        : "",
+                    tanggalEndDisplay:
+                      value === "Sakit" || value === "Izin"
+                        ? formData.tanggalEndDisplay
+                        : "",
                   };
                   setFormData(newFormData);
                   setIsNeedDetected(value === "Hadir" || value === "Pulang");

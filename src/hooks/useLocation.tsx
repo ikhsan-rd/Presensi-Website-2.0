@@ -7,6 +7,10 @@ export interface LocationData {
   FmapUrl: string;
 }
 
+const isMobileDevice = () => {
+  return /android|iphone|ipad|ipod/i.test(navigator.userAgent);
+};
+
 export const useLocation = () => {
   const [locationData, setLocationData] = useState<LocationData>({
     Flatitude: "0",
@@ -15,82 +19,100 @@ export const useLocation = () => {
     FmapUrl: "",
   });
 
-  // Get address from coordinates using Nominatim
   const getAddressFromCoordinates = async (
     latitude: number,
     longitude: number
   ): Promise<string> => {
     try {
       const response = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`,
+        {
+          headers: {
+            "User-Agent": "Presensi-website-triomotor/3.0",
+          },
+        }
       );
 
       if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
+        throw new Error("Reverse geocoding failed");
       }
 
       const data = await response.json();
-      return data.display_name || "Unknown location";
+      return data.display_name || "Lokasi tidak diketahui";
     } catch (error) {
-      console.error("Failed to get address:", error);
-      return "Error getting location";
+      console.error("Reverse geocoding error:", error);
+      return "Gagal mengambil alamat";
     }
   };
 
-  // Get location and decode address
-  const getLocationAndDecode = useCallback(async (): Promise<LocationData> => {
+  const getLocationAndDecode = useCallback((): Promise<LocationData> => {
     if (!navigator.geolocation) {
-      throw new Error("Geolocation is not supported by this browser");
+      return Promise.reject(
+        new Error("Geolocation tidak didukung browser ini")
+      );
     }
 
-    return new Promise<LocationData>((resolve, reject) => {
+    const isMobile = isMobileDevice();
+
+    const options: PositionOptions = {
+      enableHighAccuracy: isMobile,
+      timeout: isMobile ? 15000 : 20000,
+      maximumAge: 60000,
+    };
+
+    const requestLocation = (
+      resolve: (value: LocationData) => void,
+      reject: (reason?: any) => void,
+      fallback = false
+    ) => {
       navigator.geolocation.getCurrentPosition(
         async (position) => {
-          try {
-            const latitude = position.coords.latitude;
-            const longitude = position.coords.longitude;
-            const accuracy = position.coords.accuracy;
+          const { latitude, longitude, accuracy } = position.coords;
 
-            let Flokasi = await getAddressFromCoordinates(latitude, longitude);
+          const FmapUrl = `https://www.google.com/maps?q=${latitude},${longitude}`;
 
-            if (accuracy > 300) {
-              Flokasi = `⚠ (Lokasi mungkin tidak akurat) ⚠ --- ${Flokasi}`;
-            }
+          const address = await getAddressFromCoordinates(latitude, longitude);
 
-            const FmapUrl = `https://www.google.com/maps?q=${latitude},${longitude}`;
+          const Flokasi =
+            accuracy > 300
+              ? `⚠ Lokasi mungkin tidak akurat. ${address}`
+              : address;
 
-            const locationResult = {
-              Flatitude: latitude.toString(),
-              Flongitude: longitude.toString(),
-              Flokasi,
-              FmapUrl,
-            };
+          const result: LocationData = {
+            Flatitude: latitude.toString(),
+            Flongitude: longitude.toString(),
+            Flokasi,
+            FmapUrl,
+          };
 
-            setLocationData(locationResult);
-            resolve(locationResult);
-          } catch (error) {
-            reject(error);
-          }
+          setLocationData(result);
+          resolve(result);
         },
         (error) => {
-          let message = "";
-          switch (error.code) {
-            case error.PERMISSION_DENIED:
-              message = "Location access denied by user";
-              break;
-            case error.POSITION_UNAVAILABLE:
-              message = "Location information unavailable";
-              break;
-            case error.TIMEOUT:
-              message = "Location request timeout";
-              break;
-            default:
-              message = "Unknown location error";
+          if (error.code === error.TIMEOUT && !fallback && isMobile) {
+            requestLocation(resolve, reject, true);
+            return;
           }
+
+          let message = "Gagal mendapatkan lokasi";
+          if (error.code === error.PERMISSION_DENIED) {
+            message = "Izin lokasi ditolak";
+          } else if (error.code === error.POSITION_UNAVAILABLE) {
+            message = "Lokasi tidak tersedia";
+          } else if (error.code === error.TIMEOUT) {
+            message = "Permintaan lokasi timeout";
+          }
+
           reject(new Error(message));
         },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        fallback
+          ? { enableHighAccuracy: false, timeout: 20000, maximumAge: 60000 }
+          : options
       );
+    };
+
+    return new Promise<LocationData>((resolve, reject) => {
+      requestLocation(resolve, reject);
     });
   }, []);
 
