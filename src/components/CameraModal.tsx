@@ -44,7 +44,7 @@ export const CameraModal = ({
   onFlipCamera,
 }: CameraModalProps) => {
   const isSakitOrIzin = presensiType === "Sakit" || presensiType === "Izin";
-  
+
   const getTitle = () => {
     if (mode === "preview") return "Preview Foto";
     if (presensiType === "Sakit") return "Foto Surat Sakit";
@@ -85,7 +85,7 @@ export const CameraModal = ({
 
           <div
             className="relative aspect-[4/5] bg-muted rounded-lg overflow-hidden"
-            style={{ maxHeight: '70vh' }}
+            style={{ maxHeight: "70vh" }}
           >
             {mode === "preview" ? (
               <>
@@ -143,23 +143,19 @@ export const CameraModal = ({
                   </div>
                 )}
 
-                <div 
+                <div
                   className="absolute text-white pointer-events-none"
-                  style={{ 
-                    bottom: '19px', 
-                    left: '19px',
-                    fontSize: 'max(13px, calc(100% / 35))',
-                    textShadow: '2px 2px 6px rgba(0, 0, 0, 0.8)',
-                    lineHeight: '1.4'
+                  style={{
+                    bottom: "19px",
+                    left: "19px",
+                    fontSize: "max(13px, calc(100% / 35))",
+                    textShadow: "2px 2px 6px rgba(0, 0, 0, 0.8)",
+                    lineHeight: "1.4",
                   }}
                 >
                   <div className="space-y-0">
-                    <div>
-                      {location ? location : "Mendapatkan lokasi..."}
-                    </div>
-                    <div>
-                      {new Date().toLocaleString("id-ID")}
-                    </div>
+                    <div>{location ? location : "Mendapatkan lokasi..."}</div>
+                    <div>{new Date().toLocaleString("id-ID")}</div>
                   </div>
                 </div>
               </>

@@ -20,10 +20,10 @@ import {
   LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { NotificationDialog } from "@/components/NotificationDialog";
 import { LoadingScreen } from "@/components/LoadingScreen";
 import { LoginModal } from "@/components/LoginModal";
 import { CameraModal } from "@/components/CameraModal";
+import { NotificationDialog } from "@/components/NotificationDialog";
 import { useCamera } from "@/hooks/useCamera";
 import { useLocation } from "@/hooks/useLocation";
 import { useUserData } from "@/hooks/useUserData";
@@ -165,8 +165,6 @@ export const PresensiForm = () => {
       setLoadingMessage("Mendapatkan data");
       const userData = await fetchUserData(formData.id.trim());
 
-      // console.log("Fetched user data:", userData);
-
       if (!userData) {
         setNotification({
           isOpen: true,
@@ -199,8 +197,6 @@ export const PresensiForm = () => {
         lokasi: locationResult.Flokasi,
         urlMaps: locationResult.FmapUrl,
       }));
-
-      // console.log("FormData in Handle Check:", formData);
 
       setIsIdChecked(true);
       setIdNeedsRecheck(false);
@@ -352,18 +348,25 @@ export const PresensiForm = () => {
   // Validation logic
   const isFormValid = () => {
     if (!isIdChecked) return false;
-    if (!formData.presensi || formData.presensi.trim() === "") return false;
-    if (!formData.lokasi || !formData.uuid || !formData.fingerprint)
+
+    if (!formData.presensi || formData.presensi.trim() === "") {
       return false;
-    // For Sakit/Izin, tanggalEnd is optional (single day if not set)
+    }
+
+    if (!formData.lokasi || !formData.uuid || !formData.fingerprint) {
+      return false;
+    }
+
+    if (
+      (formData.presensi === "Sakit" || formData.presensi === "Izin") &&
+      !formData.tanggalEnd
+    ) {
+      return false;
+    }
+
     return true;
   };
 
-  // FIX: Safe check for mobile with fallback
-  const isMobile =
-    typeof navigator !== "undefined" && navigator.userAgent
-      ? /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
-      : false;
   const isCameraEnabled = () => isFormValid();
   const isSubmitEnabled = () => isFormValid() && capturedImage;
 

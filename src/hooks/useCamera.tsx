@@ -8,7 +8,6 @@ import { CAMERA_CONFIG } from "@/config/camera";
 export const useCamera = (location?: string, skipFaceDetection?: boolean) => {
   const [mode, setMode] = useState<"camera" | "preview">("camera");
 
-  //
   const [cameraModalOpen, setCameraModalOpen] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [faceDetected, setFaceDetected] = useState(false);
@@ -19,7 +18,6 @@ export const useCamera = (location?: string, skipFaceDetection?: boolean) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const rafRef = useRef<number | null>(null);
-  //
 
   const isMobile = useIsMobile();
 
@@ -118,12 +116,15 @@ export const useCamera = (location?: string, skipFaceDetection?: boolean) => {
      Face Detection Loop
   ========================= */
   useEffect(() => {
-    if (skipFaceDetection) {
+    if (
+      skipFaceDetection ||
+      facingMode !== "user" ||
+      !cameraModalOpen ||
+      !model
+    ) {
       setFaceDetected(true);
       return;
     }
-
-    if (!cameraModalOpen || !model) return;
 
     let running = true;
 
@@ -162,6 +163,11 @@ export const useCamera = (location?: string, skipFaceDetection?: boolean) => {
         sHeight = video.videoWidth / targetRatio;
         sy = (video.videoHeight - sHeight) / 2;
       }
+
+      ctx.save();
+
+      ctx.translate(displayWidth, 0);
+      ctx.scale(-1, 1);
 
       ctx.drawImage(
         video,
@@ -205,12 +211,15 @@ export const useCamera = (location?: string, skipFaceDetection?: boolean) => {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    ctx.save();
+
     if (facingMode === "user") {
+      ctx.translate(canvas.width, 0);
       ctx.scale(-1, 1);
-      ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
-    } else {
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     }
+
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    ctx.restore();
 
     const imageData = canvas.toDataURL("image/jpeg", 0.7);
     setCapturedImage(imageData);
