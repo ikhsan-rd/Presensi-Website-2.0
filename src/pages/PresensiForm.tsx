@@ -94,13 +94,16 @@ export const PresensiForm = () => {
     mode,
     facingMode,
     flipCamera,
-  } = useCamera({
-    location: formData.lokasi,
-    tanggalDisplay: formData.tanggalStartDisplay,
-    tanggalEndDisplay: formData.tanggalEndDisplay,
-    jam: formData.jam,
-    presensiType: formData.presensi,
-  }, isSakitOrIzin);
+  } = useCamera(
+    {
+      location: formData.lokasi,
+      tanggalDisplay: formData.tanggalStartDisplay,
+      tanggalEndDisplay: formData.tanggalEndDisplay,
+      jam: formData.jam,
+      presensiType: formData.presensi,
+    },
+    isSakitOrIzin
+  );
 
   const { getLocationAndDecode } = useLocation();
   const { getDeviceIdentity } = useDeviceIdentity();
@@ -139,7 +142,7 @@ export const PresensiForm = () => {
   // Real-time clock update - only when not locked
   useEffect(() => {
     if (isDataLocked) return; // Don't update when photo is captured
-    
+
     const interval = setInterval(() => {
       setFormData((prev) => ({
         ...prev,
@@ -563,7 +566,11 @@ export const PresensiForm = () => {
                 {isSakitOrIzin ? (
                   <Input
                     type="date"
-                    value={isDataLocked ? (lockedTanggal || formData.tanggal) : formData.tanggal}
+                    value={
+                      isDataLocked
+                        ? lockedTanggal || formData.tanggal
+                        : formData.tanggal
+                    }
                     min={getTanggalSekarang().tanggal}
                     disabled={!isIdChecked || idNeedsRecheck || isDataLocked}
                     onChange={(e) => {
@@ -610,7 +617,11 @@ export const PresensiForm = () => {
                   </label>
                   <Input
                     type="date"
-                    value={isDataLocked ? (lockedTanggalEnd || formData.tanggalEnd) : formData.tanggalEnd}
+                    value={
+                      isDataLocked
+                        ? lockedTanggalEnd || formData.tanggalEnd
+                        : formData.tanggalEnd
+                    }
                     min={formData.tanggal} // Can't be before start date
                     disabled={!isIdChecked || idNeedsRecheck || isDataLocked}
                     onChange={(e) => {
@@ -677,30 +688,34 @@ export const PresensiForm = () => {
                 value={formData.presensi}
                 onValueChange={(value) => {
                   const prevValue = formData.presensi;
-                  const prevIsSakitIzin = prevValue === "Sakit" || prevValue === "Izin";
+                  const prevIsSakitIzin =
+                    prevValue === "Sakit" || prevValue === "Izin";
                   const newIsSakitIzin = value === "Sakit" || value === "Izin";
-                  
+
                   // Check if switching between groups (Hadir/Pulang <-> Sakit/Izin)
-                  const isGroupChange = prevValue && prevIsSakitIzin !== newIsSakitIzin;
-                  
+                  const isGroupChange =
+                    prevValue && prevIsSakitIzin !== newIsSakitIzin;
+
                   // Clear photo if switching between groups
                   if (isGroupChange && capturedImage) {
                     retakePhoto();
                     unlockTanggalWaktu();
                     toast({
                       title: "Foto dihapus",
-                      description: newIsSakitIzin 
-                        ? "Silakan ambil foto dokumen surat untuk Sakit/Izin" 
+                      description: newIsSakitIzin
+                        ? "Silakan ambil foto dokumen surat untuk Sakit/Izin"
                         : "Silakan ambil foto wajah untuk presensi Hadir/Pulang",
                     });
                   }
-                  
+
                   // Reset tanggalEnd when switching away from Sakit/Izin
                   const newFormData = {
                     ...formData,
                     presensi: value,
                     tanggalEnd: newIsSakitIzin ? formData.tanggalEnd : "",
-                    tanggalEndDisplay: newIsSakitIzin ? formData.tanggalEndDisplay : "",
+                    tanggalEndDisplay: newIsSakitIzin
+                      ? formData.tanggalEndDisplay
+                      : "",
                   };
                   setFormData(newFormData);
                   setIsNeedDetected(value === "Hadir" || value === "Pulang");
@@ -852,7 +867,7 @@ export const PresensiForm = () => {
         onLock={() => lockTanggalWaktu(formData.jam)}
         onUnlock={unlockTanggalWaktu}
         location={formData.lokasi}
-        tanggalDisplay={formData.tanggalStartDisplay}
+        tanggalStartDisplay={formData.tanggalStartDisplay}
         tanggalEndDisplay={formData.tanggalEndDisplay}
         waktuLengkap={formData.jam || ""}
         imageUrl={capturedImage || ""}

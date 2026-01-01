@@ -17,11 +17,15 @@ interface CameraModalProps {
   canvasRef: React.RefObject<HTMLCanvasElement>;
   faceDetected: boolean;
   isNeedDetected: boolean;
-  onCapture: (lockedWaktu: string, lockedTanggalDisplay?: string, lockedTanggalEndDisplay?: string) => void;
+  onCapture: (
+    lockedWaktu: string,
+    lockedtanggalStartDisplay?: string,
+    lockedTanggalEndDisplay?: string
+  ) => void;
   onLock?: () => void; // Called when photo is captured to lock form data
   onUnlock?: () => void; // Called when retake to unlock form data
   location: string;
-  tanggalDisplay: string;
+  tanggalStartDisplay: string;
   tanggalEndDisplay?: string;
   waktuLengkap: string;
   imageUrl: string | null;
@@ -44,7 +48,7 @@ export const CameraModal = ({
   onLock,
   onUnlock,
   location,
-  tanggalDisplay,
+  tanggalStartDisplay,
   tanggalEndDisplay,
   waktuLengkap,
   imageUrl,
@@ -91,10 +95,10 @@ export const CameraModal = ({
   const handleCapture = () => {
     const lockedTime = waktuLive;
     setWaktuLocked(lockedTime);
-    setTanggalLocked(tanggalDisplay);
+    setTanggalLocked(tanggalStartDisplay);
     setTanggalEndLocked(tanggalEndDisplay || null);
     onLock?.(); // Lock form data when capturing
-    onCapture(lockedTime, tanggalDisplay, tanggalEndDisplay);
+    onCapture(lockedTime, tanggalStartDisplay, tanggalEndDisplay);
   };
 
   const handleRetake = () => {
@@ -108,11 +112,11 @@ export const CameraModal = ({
   // Build display text for overlay
   const getOverlaySecondLine = () => {
     if (isSakitOrIzin) {
-      const start = tanggalLocked ?? tanggalDisplay;
+      const start = tanggalLocked ?? tanggalStartDisplay;
       const end = tanggalEndLocked ?? tanggalEndDisplay;
       return `${start} - ${end || "..."}`;
     } else {
-      const date = tanggalLocked ?? tanggalDisplay;
+      const date = tanggalLocked ?? tanggalStartDisplay;
       const time = waktuLocked ?? waktuLive;
       return `${date}, ${time}`;
     }
