@@ -59,6 +59,9 @@ export const PresensiForm = () => {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isNeedDetected, setIsNeedDetected] = useState(false);
 
+  const [lockedWaktu, setLockedWaktu] = useState<string | null>(null);
+  const [lockedTanggal, setLockedTanggal] = useState<string | null>(null);
+
   const [notification, setNotification] = useState<{
     isOpen: boolean;
     type: "success" | "error";
@@ -110,6 +113,16 @@ export const PresensiForm = () => {
     isLoggingOut,
   } = useUser();
 
+  const lockTanggalWaktu = (waktu: string) => {
+    setLockedWaktu(waktu);
+    setLockedTanggal(formData.tanggal);
+  };
+
+  const unlockTanggalWaktu = () => {
+    setLockedWaktu(null);
+    setLockedTanggal(null);
+  };
+
   // Real-time clock update
   useEffect(() => {
     const interval = setInterval(() => {
@@ -138,10 +151,10 @@ export const PresensiForm = () => {
 
   // Auto-set date
   useEffect(() => {
-    const { tanggalDisplay, tanggal } = getTanggalSekarang();
+    const { tanggalStartDisplay, tanggal } = getTanggalSekarang();
     setFormData((prev) => ({
       ...prev,
-      tanggalDisplay,
+      tanggalStartDisplay,
       tanggal,
     }));
   }, []);
@@ -266,11 +279,6 @@ export const PresensiForm = () => {
         photoFileUrl: tempFileName,
       });
 
-      // console.log("=== Fake Submit Payload ===");
-      // Object.entries(response).forEach(([key, value]) => {
-      //   console.log(`${key}:`, value, "| type:", typeof value);
-      // });
-
       if (!response.success) {
         setNotification({
           isOpen: true,
@@ -282,7 +290,7 @@ export const PresensiForm = () => {
       }
 
       // 1. Upload foto
-      const fileName = `${formData.id}-${formData.tanggalDisplay}-${formData.presensi}.jpg`;
+      const fileName = `${formData.id}-${formData.tanggalStartDisplay}-${formData.presensi}.jpg`;
 
       setLoadingMessage("Upload Foto...");
       const uploadRes = await uploadPhoto(
@@ -529,16 +537,51 @@ export const PresensiForm = () => {
                     ? "Tanggal Mulai"
                     : "Tanggal"}
                 </label>
-                <Input
-                  value={formData.tanggalDisplay}
-                  readOnly
-                  disabled={!isIdChecked || idNeedsRecheck}
-                  className="bg-muted"
-                />
+
+                {isSakitOrIzin ? (
+                  <Input
+                    type="date"
+                    value={formData.tanggal}
+                    min={getTanggalSekarang().tanggal}
+                    disabled={!isIdChecked || idNeedsRecheck}
+                    onChange={(e) => {
+                      const dateValue = e.target.value;
+
+                      let displayValue = "";
+                      if (dateValue) {
+                        const [year, month, day] = dateValue.split("-");
+                        displayValue = `${day}-${month}-${year}`;
+                      }
+
+                      setFormData((prev) => ({
+                        ...prev,
+                        tanggal: dateValue,
+                        tanggalStartDisplay: displayValue,
+
+                        tanggalEnd:
+                          prev.tanggalEnd && prev.tanggalEnd < dateValue
+                            ? ""
+                            : prev.tanggalEnd,
+                        tanggalEndDisplay:
+                          prev.tanggalEnd && prev.tanggalEnd < dateValue
+                            ? ""
+                            : prev.tanggalEndDisplay,
+                      }));
+                    }}
+                    className="bg-background"
+                  />
+                ) : (
+                  <Input
+                    value={formData.tanggalStartDisplay}
+                    readOnly
+                    disabled={!isIdChecked || idNeedsRecheck}
+                    className="bg-muted"
+                  />
+                )}
               </div>
 
               {/* Tanggal Selesai - Only for Sakit/Izin */}
-              {formData.presensi === "Sakit" || formData.presensi === "Izin" ? (
+              {isSakitOrIzin ? (
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">
                     Tanggal Selesai
@@ -546,22 +589,23 @@ export const PresensiForm = () => {
                   <Input
                     type="date"
                     value={formData.tanggalEnd}
+                    min={formData.tanggal} // Can't be before start date
+                    disabled={!isIdChecked || idNeedsRecheck}
                     onChange={(e) => {
                       const dateValue = e.target.value;
-                      // Format for display (DD-MM-YYYY)
                       let displayValue = "";
+
                       if (dateValue) {
                         const [year, month, day] = dateValue.split("-");
                         displayValue = `${day}-${month}-${year}`;
                       }
+
                       setFormData({
                         ...formData,
                         tanggalEnd: dateValue,
                         tanggalEndDisplay: displayValue,
                       });
                     }}
-                    min={formData.tanggal} // Can't be before start date
-                    disabled={!isIdChecked || idNeedsRecheck}
                     className="bg-background"
                   />
                   {/* Duration info */}
@@ -573,6 +617,7 @@ export const PresensiForm = () => {
                       const diffTime = end.getTime() - start.getTime();
                       const diffDays =
                         Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 to include both days
+
                       if (diffDays > 0) {
                         return (
                           <p className="text-sm text-muted-foreground">
@@ -770,6 +815,7 @@ export const PresensiForm = () => {
         isNeedDetected={isNeedDetected}
         onCapture={capturePhoto}
         location={formData.lokasi}
+        waktuLengkap={formData.jam || ""}
         imageUrl={capturedImage || ""}
         onRetake={retakePhoto}
         mode={mode}

@@ -8,6 +8,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Check, X, RefreshCw, CameraIcon, SwitchCamera } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useEffect, useState } from "react";
 
 interface CameraModalProps {
   isOpen: boolean;
@@ -16,8 +17,9 @@ interface CameraModalProps {
   canvasRef: React.RefObject<HTMLCanvasElement>;
   faceDetected: boolean;
   isNeedDetected: boolean;
-  onCapture: () => void;
+  onCapture: (lockedWaktu: string) => void;
   location: string;
+  waktuLengkap: string;
   imageUrl: string | null;
   onRetake: () => void;
   mode: "camera" | "preview";
@@ -36,6 +38,7 @@ export const CameraModal = ({
   isNeedDetected,
   onCapture,
   location,
+  waktuLengkap,
   imageUrl,
   onRetake,
   mode,
@@ -43,6 +46,9 @@ export const CameraModal = ({
   facingMode = "user",
   onFlipCamera,
 }: CameraModalProps) => {
+  const [waktuLive, setWaktuLive] = useState(waktuLengkap);
+  const [waktuLocked, setWaktuLocked] = useState<string | null>(null);
+
   const isSakitOrIzin = presensiType === "Sakit" || presensiType === "Izin";
 
   const getTitle = () => {
@@ -61,6 +67,28 @@ export const CameraModal = ({
     }
     return "Pastikan wajah Anda terlihat jelas dalam frame kamera";
   };
+
+  useEffect(() => {
+    if (waktuLocked) return;
+
+    const id = setInterval(() => {
+      setWaktuLive(new Date().toLocaleString("id-ID"));
+    }, 1000);
+
+    return () => clearInterval(id);
+  }, [waktuLocked]);
+
+  const handleCapture = () => {
+    const locked = waktuLive;
+    setWaktuLocked(locked);
+    onCapture(locked);
+  };
+
+  const handleRetake = () => {
+    setWaktuLocked(null);
+    onRetake();
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
@@ -95,10 +123,6 @@ export const CameraModal = ({
                   loading="lazy"
                   className="left-0 right-0 rounded-lg w-full h-full object-cover"
                 />
-                {/* Preview overlay untuk menunjukkan teks sudah di-burn ke foto */}
-                <div className="absolute bottom-2 right-2 bg-black/50 text-white text-[10px] px-2 py-1 rounded">
-                  Teks sudah tersimpan di foto
-                </div>
               </>
             ) : (
               <>
@@ -147,15 +171,19 @@ export const CameraModal = ({
                   className="absolute text-white pointer-events-none"
                   style={{
                     bottom: "19px",
-                    left: "19px",
+                    left: 0,
+                    right: 0,
+                    paddingLeft: "19px",
+                    paddingRight: "19px",
                     fontSize: "max(13px, calc(100% / 35))",
                     textShadow: "2px 2px 6px rgba(0, 0, 0, 0.8)",
                     lineHeight: "1.4",
+                    textAlign: "justify",
                   }}
                 >
-                  <div className="space-y-0">
-                    <div>{location ? location : "Mendapatkan lokasi..."}</div>
-                    <div>{new Date().toLocaleString("id-ID")}</div>
+                  <div>
+                    <div>{location}</div>
+                    <div>{waktuLocked ?? waktuLive}</div>
                   </div>
                 </div>
               </>
@@ -173,7 +201,7 @@ export const CameraModal = ({
                   <Check className="w-4 h-4" />
                   Gunakan Foto
                 </Button>
-                <Button variant="outline" onClick={onRetake}>
+                <Button variant="outline" onClick={handleRetake}>
                   <RefreshCw className="w-4 h-4 mr-2" />
                   Ulang
                 </Button>
@@ -181,7 +209,7 @@ export const CameraModal = ({
             ) : (
               <>
                 <Button
-                  onClick={onCapture}
+                  onClick={handleCapture}
                   disabled={!faceDetected && isNeedDetected && !isSakitOrIzin}
                   className="flex-1 bg-honda-red hover:bg-honda-red-dark"
                 >

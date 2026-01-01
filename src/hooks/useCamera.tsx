@@ -7,7 +7,6 @@ import { CAMERA_CONFIG } from "@/config/camera";
 
 export const useCamera = (location?: string, skipFaceDetection?: boolean) => {
   const [mode, setMode] = useState<"camera" | "preview">("camera");
-
   const [cameraModalOpen, setCameraModalOpen] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [faceDetected, setFaceDetected] = useState(false);
@@ -46,7 +45,7 @@ export const useCamera = (location?: string, skipFaceDetection?: boolean) => {
   }, []);
 
   /* =========================
-     Start Camera when modal opens
+     Start Camera
   ========================= */
   useEffect(() => {
     if (!cameraModalOpen || mode !== "camera") return;
@@ -62,15 +61,13 @@ export const useCamera = (location?: string, skipFaceDetection?: boolean) => {
           streamRef.current = null;
         }
 
-        const cameraConstraints = isMobile
-          ? CAMERA_CONFIG.mobile
-          : CAMERA_CONFIG.desktop;
+        const config = isMobile ? CAMERA_CONFIG.mobile : CAMERA_CONFIG.desktop;
 
         const stream = await navigator.mediaDevices.getUserMedia({
           video: {
             facingMode,
-            width: cameraConstraints.width,
-            height: cameraConstraints.height,
+            width: config.width,
+            height: config.height,
           },
           audio: false,
         });
@@ -142,11 +139,11 @@ export const useCamera = (location?: string, skipFaceDetection?: boolean) => {
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
 
-      const displayWidth = video.clientWidth;
-      const displayHeight = video.clientHeight;
+      const w = video.clientWidth;
+      const h = video.clientHeight;
 
-      canvas.width = displayWidth;
-      canvas.height = displayHeight;
+      canvas.width = w;
+      canvas.height = h;
 
       const targetRatio = 4 / 5;
       const videoRatio = video.videoWidth / video.videoHeight;
@@ -165,27 +162,17 @@ export const useCamera = (location?: string, skipFaceDetection?: boolean) => {
       }
 
       ctx.save();
-
-      ctx.translate(displayWidth, 0);
+      ctx.translate(w, 0);
       ctx.scale(-1, 1);
 
-      ctx.drawImage(
-        video,
-        sx,
-        sy,
-        sWidth,
-        sHeight,
-        0,
-        0,
-        displayWidth,
-        displayHeight
-      );
+      ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, w, h);
 
-      const imageData = ctx.getImageData(0, 0, displayWidth, displayHeight);
+      const imageData = ctx.getImageData(0, 0, w, h);
       const predictions = await model.estimateFaces(imageData, false);
 
       setFaceDetected(predictions.length > 0);
 
+      ctx.restore();
       rafRef.current = requestAnimationFrame(detectLoop);
     };
 
@@ -195,36 +182,159 @@ export const useCamera = (location?: string, skipFaceDetection?: boolean) => {
       running = false;
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [cameraModalOpen, model, skipFaceDetection]);
+  }, [cameraModalOpen, model, skipFaceDetection, facingMode]);
+
+  /* =========================
+     Helper: Wrapped Text
+  ========================= */
+  const wrapTextLines = (
+    ctx: CanvasRenderingContext2D,
+    text: string,
+    maxWidth: number
+  ) => {
+    const words = text.split(" ");
+    const lines: string[] = [];
+    let line = "";
+
+    for (const word of words) {
+      const testLine = line ? `${line} ${word}` : word;
+      const { width } = ctx.measureText(testLine);
+
+      if (width > maxWidth && line) {
+        lines.push(line);
+        line = word;
+      } else {
+        line = testLine;
+      }
+    }
+
+    if (line) lines.push(line);
+    return lines;
+  };
+
+  const drawJustifiedLine = (
+    ctx: CanvasRenderingContext2D,
+    words: string[],
+    x: number,
+    y: number,
+    maxWidth: number
+  ) => {
+    if (words.length === 1) {
+      ctx.fillText(words[0], x, y);
+      return;
+    }
+
+    const wordsWidth = words.reduce(
+      (sum, w) => sum + ctx.measureText(w).width,
+      0
+    );
+
+    const space = (maxWidth - wordsWidth) / (words.length - 1);
+    let cursorX = x;
+
+    words.forEach((word, i) => {
+      ctx.fillText(word, cursorX, y);
+      cursorX += ctx.measureText(word).width;
+      if (i < words.length - 1) cursorX += space;
+    });
+  };
 
   /* =========================
      Capture Photo
   ========================= */
-  const capturePhoto = useCallback(() => {
-    const video = videoRef.current;
-    if (!video) return;
+  const capturePhoto = useCallback(
+    (lockedWaktu: string) => {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      if (!video || !canvas) return;
 
-    const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+      const w = video.clientWidth;
+      const h = video.clientHeight;
 
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+      canvas.width = w;
+      canvas.height = h;
 
-    ctx.save();
+      const targetRatio = 4 / 5;
+      const videoRatio = video.videoWidth / video.videoHeight;
 
-    if (facingMode === "user") {
-      ctx.translate(canvas.width, 0);
-      ctx.scale(-1, 1);
-    }
+      let sx = 0;
+      let sy = 0;
+      let sWidth = video.videoWidth;
+      let sHeight = video.videoHeight;
 
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    ctx.restore();
+      if (videoRatio > targetRatio) {
+        sWidth = video.videoHeight * targetRatio;
+        sx = (video.videoWidth - sWidth) / 2;
+      } else {
+        sHeight = video.videoWidth / targetRatio;
+        sy = (video.videoHeight - sHeight) / 2;
+      }
 
-    const imageData = canvas.toDataURL("image/jpeg", 0.7);
-    setCapturedImage(imageData);
-    setMode("preview");
-  }, [facingMode]);
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      ctx.save();
+
+      if (facingMode === "user") {
+        ctx.translate(w, 0);
+        ctx.scale(-1, 1);
+      }
+
+      ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, w, h);
+      ctx.restore();
+
+      /* Burn Text */
+      const padding = w * 0.045;
+      const fontSize = w * 0.032;
+      const lineHeight = fontSize * 1.4;
+      const maxWidth = w - padding * 2;
+
+      ctx.font = `${fontSize}px sans-serif`;
+      ctx.fillStyle = "white";
+      ctx.textBaseline = "top";
+      ctx.shadowColor = "rgba(0,0,0,0.8)";
+      ctx.shadowBlur = fontSize * 0.4;
+      ctx.shadowOffsetX = 2;
+      ctx.shadowOffsetY = 2;
+
+      const timeText = lockedWaktu || "";
+      const locationText = location || "";
+
+      // Pecah lokasi jadi baris
+      const locationLines = wrapTextLines(ctx, locationText, maxWidth);
+
+      // Hitung tinggi total
+      const locationHeight = locationLines.length * lineHeight;
+      const timeHeight = lineHeight;
+      const totalHeight = locationHeight + timeHeight;
+
+      // Titik awal dari bawah
+      let y = h - padding - totalHeight;
+
+      // Render lokasi
+      locationLines.forEach((line, index) => {
+        const words = line.split(" ");
+
+        const isLastLine = index === locationLines.length - 1;
+
+        if (isLastLine) {
+          ctx.fillText(line, padding, y);
+        } else {
+          drawJustifiedLine(ctx, words, padding, y, maxWidth);
+        }
+
+        y += lineHeight;
+      });
+
+      // Render jam di bawah lokasi
+      ctx.fillText(timeText, padding, y);
+
+      const imageData = canvas.toDataURL("image/jpeg", 0.8);
+      setCapturedImage(imageData);
+      setMode("preview");
+    },
+    [facingMode, location]
+  );
 
   const retakePhoto = useCallback(() => {
     setCapturedImage(null);

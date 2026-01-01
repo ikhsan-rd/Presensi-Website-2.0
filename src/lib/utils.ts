@@ -13,7 +13,7 @@ export function getTanggalSekarang() {
   const bulan = String(now.getMonth() + 1).padStart(2, "0");
   const tanggalHari = String(now.getDate()).padStart(2, "0");
 
-  const tanggalDisplay = now.toLocaleDateString("id-ID", {
+  const tanggalStartDisplay = now.toLocaleDateString("id-ID", {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -22,5 +22,5 @@ export function getTanggalSekarang() {
   // Pastikan format ISO-nya tetap lokal, bukan UTC
   const tanggal = `${tahun}-${bulan}-${tanggalHari}`; // yyyy-MM-dd
 
-  return { tanggalDisplay, tanggal };
+  return { tanggalStartDisplay, tanggal };
 }
