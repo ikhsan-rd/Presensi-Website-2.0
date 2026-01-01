@@ -17,10 +17,12 @@ interface CameraModalProps {
   canvasRef: React.RefObject<HTMLCanvasElement>;
   faceDetected: boolean;
   isNeedDetected: boolean;
-  onCapture: (lockedWaktu: string) => void;
+  onCapture: (lockedWaktu: string, lockedTanggalDisplay?: string, lockedTanggalEndDisplay?: string) => void;
   onLock?: () => void; // Called when photo is captured to lock form data
   onUnlock?: () => void; // Called when retake to unlock form data
   location: string;
+  tanggalDisplay: string;
+  tanggalEndDisplay?: string;
   waktuLengkap: string;
   imageUrl: string | null;
   onRetake: () => void;
@@ -42,6 +44,8 @@ export const CameraModal = ({
   onLock,
   onUnlock,
   location,
+  tanggalDisplay,
+  tanggalEndDisplay,
   waktuLengkap,
   imageUrl,
   onRetake,
@@ -52,6 +56,8 @@ export const CameraModal = ({
 }: CameraModalProps) => {
   const [waktuLive, setWaktuLive] = useState(waktuLengkap);
   const [waktuLocked, setWaktuLocked] = useState<string | null>(null);
+  const [tanggalLocked, setTanggalLocked] = useState<string | null>(null);
+  const [tanggalEndLocked, setTanggalEndLocked] = useState<string | null>(null);
 
   const isSakitOrIzin = presensiType === "Sakit" || presensiType === "Izin";
 
@@ -83,16 +89,33 @@ export const CameraModal = ({
   }, [waktuLocked]);
 
   const handleCapture = () => {
-    const locked = waktuLive;
-    setWaktuLocked(locked);
+    const lockedTime = waktuLive;
+    setWaktuLocked(lockedTime);
+    setTanggalLocked(tanggalDisplay);
+    setTanggalEndLocked(tanggalEndDisplay || null);
     onLock?.(); // Lock form data when capturing
-    onCapture(locked);
+    onCapture(lockedTime, tanggalDisplay, tanggalEndDisplay);
   };
 
   const handleRetake = () => {
     setWaktuLocked(null);
+    setTanggalLocked(null);
+    setTanggalEndLocked(null);
     onUnlock?.(); // Unlock form data when retaking
     onRetake();
+  };
+
+  // Build display text for overlay
+  const getOverlaySecondLine = () => {
+    if (isSakitOrIzin) {
+      const start = tanggalLocked ?? tanggalDisplay;
+      const end = tanggalEndLocked ?? tanggalEndDisplay;
+      return `${start} - ${end || "..."}`;
+    } else {
+      const date = tanggalLocked ?? tanggalDisplay;
+      const time = waktuLocked ?? waktuLive;
+      return `${date}, ${time}`;
+    }
   };
 
   return (
@@ -189,7 +212,7 @@ export const CameraModal = ({
                 >
                   <div>
                     <div>{location}</div>
-                    <div>{waktuLocked ?? waktuLive}</div>
+                    <div>{getOverlaySecondLine()}</div>
                   </div>
                 </div>
               </>
