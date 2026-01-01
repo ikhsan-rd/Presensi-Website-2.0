@@ -5,7 +5,15 @@ import "@tensorflow/tfjs-backend-webgl";
 import { useIsMobile } from "./use-mobile";
 import { CAMERA_CONFIG } from "@/config/camera";
 
-export const useCamera = (location?: string, skipFaceDetection?: boolean) => {
+export interface CameraOverlayData {
+  location?: string;
+  tanggalDisplay?: string;
+  tanggalEndDisplay?: string;
+  jam?: string;
+  presensiType?: string;
+}
+
+export const useCamera = (overlayData: CameraOverlayData, skipFaceDetection?: boolean) => {
   const [mode, setMode] = useState<"camera" | "preview">("camera");
   const [cameraModalOpen, setCameraModalOpen] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
@@ -243,7 +251,7 @@ export const useCamera = (location?: string, skipFaceDetection?: boolean) => {
      Capture Photo
   ========================= */
   const capturePhoto = useCallback(
-    (lockedWaktu: string) => {
+    (lockedWaktu: string, lockedTanggalDisplay?: string, lockedTanggalEndDisplay?: string) => {
       const video = videoRef.current;
       const canvas = canvasRef.current;
       if (!video || !canvas) return;
@@ -297,16 +305,30 @@ export const useCamera = (location?: string, skipFaceDetection?: boolean) => {
       ctx.shadowOffsetX = 2;
       ctx.shadowOffsetY = 2;
 
-      const timeText = lockedWaktu || "";
-      const locationText = location || "";
+      const locationText = overlayData.location || "";
+      const isSakitIzin = overlayData.presensiType === "Sakit" || overlayData.presensiType === "Izin";
+      
+      // Determine second line based on presensi type
+      let secondLineText: string;
+      if (isSakitIzin) {
+        // For Sakit/Izin: show date range
+        const startDate = lockedTanggalDisplay || overlayData.tanggalDisplay || "";
+        const endDate = lockedTanggalEndDisplay || overlayData.tanggalEndDisplay || "";
+        secondLineText = `${startDate} - ${endDate}`;
+      } else {
+        // For Hadir/Pulang: show date and time
+        const dateText = lockedTanggalDisplay || overlayData.tanggalDisplay || "";
+        const timeText = lockedWaktu || overlayData.jam || "";
+        secondLineText = `${dateText}, ${timeText}`;
+      }
 
       // Pecah lokasi jadi baris
       const locationLines = wrapTextLines(ctx, locationText, maxWidth);
 
       // Hitung tinggi total
       const locationHeight = locationLines.length * lineHeight;
-      const timeHeight = lineHeight;
-      const totalHeight = locationHeight + timeHeight;
+      const secondLineHeight = lineHeight;
+      const totalHeight = locationHeight + secondLineHeight;
 
       // Titik awal dari bawah
       let y = h - padding - totalHeight;
@@ -326,14 +348,14 @@ export const useCamera = (location?: string, skipFaceDetection?: boolean) => {
         y += lineHeight;
       });
 
-      // Render jam di bawah lokasi
-      ctx.fillText(timeText, padding, y);
+      // Render second line (date/time or date range)
+      ctx.fillText(secondLineText, padding, y);
 
       const imageData = canvas.toDataURL("image/jpeg", 0.8);
       setCapturedImage(imageData);
       setMode("preview");
     },
-    [facingMode, location]
+    [facingMode, overlayData]
   );
 
   const retakePhoto = useCallback(() => {

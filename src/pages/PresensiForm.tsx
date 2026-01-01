@@ -94,7 +94,13 @@ export const PresensiForm = () => {
     mode,
     facingMode,
     flipCamera,
-  } = useCamera(formData.lokasi, isSakitOrIzin);
+  } = useCamera({
+    location: formData.lokasi,
+    tanggalDisplay: formData.tanggalStartDisplay,
+    tanggalEndDisplay: formData.tanggalEndDisplay,
+    jam: formData.jam,
+    presensiType: formData.presensi,
+  }, isSakitOrIzin);
 
   const { getLocationAndDecode } = useLocation();
   const { getDeviceIdentity } = useDeviceIdentity();
@@ -846,6 +852,8 @@ export const PresensiForm = () => {
         onLock={() => lockTanggalWaktu(formData.jam)}
         onUnlock={unlockTanggalWaktu}
         location={formData.lokasi}
+        tanggalDisplay={formData.tanggalStartDisplay}
+        tanggalEndDisplay={formData.tanggalEndDisplay}
         waktuLengkap={formData.jam || ""}
         imageUrl={capturedImage || ""}
         onRetake={retakePhoto}
