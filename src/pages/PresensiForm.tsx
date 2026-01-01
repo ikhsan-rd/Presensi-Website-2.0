@@ -31,6 +31,7 @@ import { useUser } from "@/contexts/UserContext";
 import { useDeviceIdentity } from "@/hooks/useDeviceIdentity";
 import { getTanggalSekarang } from "@/lib/utils";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { toast } from "@/hooks/use-toast";
 
 export const PresensiForm = () => {
   const [formData, setFormData] = useState({
@@ -680,6 +681,12 @@ export const PresensiForm = () => {
                   if (isGroupChange && capturedImage) {
                     retakePhoto();
                     unlockTanggalWaktu();
+                    toast({
+                      title: "Foto dihapus",
+                      description: newIsSakitIzin 
+                        ? "Silakan ambil foto dokumen surat untuk Sakit/Izin" 
+                        : "Silakan ambil foto wajah untuk presensi Hadir/Pulang",
+                    });
                   }
                   
                   // Reset tanggalEnd when switching away from Sakit/Izin
