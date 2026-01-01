@@ -18,6 +18,8 @@ interface CameraModalProps {
   faceDetected: boolean;
   isNeedDetected: boolean;
   onCapture: (lockedWaktu: string) => void;
+  onLock?: () => void; // Called when photo is captured to lock form data
+  onUnlock?: () => void; // Called when retake to unlock form data
   location: string;
   waktuLengkap: string;
   imageUrl: string | null;
@@ -37,6 +39,8 @@ export const CameraModal = ({
   faceDetected,
   isNeedDetected,
   onCapture,
+  onLock,
+  onUnlock,
   location,
   waktuLengkap,
   imageUrl,
@@ -81,11 +85,13 @@ export const CameraModal = ({
   const handleCapture = () => {
     const locked = waktuLive;
     setWaktuLocked(locked);
+    onLock?.(); // Lock form data when capturing
     onCapture(locked);
   };
 
   const handleRetake = () => {
     setWaktuLocked(null);
+    onUnlock?.(); // Unlock form data when retaking
     onRetake();
   };
 

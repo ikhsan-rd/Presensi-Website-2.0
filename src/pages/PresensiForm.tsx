@@ -61,6 +61,8 @@ export const PresensiForm = () => {
 
   const [lockedWaktu, setLockedWaktu] = useState<string | null>(null);
   const [lockedTanggal, setLockedTanggal] = useState<string | null>(null);
+  const [lockedTanggalEnd, setLockedTanggalEnd] = useState<string | null>(null);
+  const [isDataLocked, setIsDataLocked] = useState(false);
 
   const [notification, setNotification] = useState<{
     isOpen: boolean;
@@ -116,15 +118,21 @@ export const PresensiForm = () => {
   const lockTanggalWaktu = (waktu: string) => {
     setLockedWaktu(waktu);
     setLockedTanggal(formData.tanggal);
+    setLockedTanggalEnd(formData.tanggalEnd || null);
+    setIsDataLocked(true);
   };
 
   const unlockTanggalWaktu = () => {
     setLockedWaktu(null);
     setLockedTanggal(null);
+    setLockedTanggalEnd(null);
+    setIsDataLocked(false);
   };
 
-  // Real-time clock update
+  // Real-time clock update - only when not locked
   useEffect(() => {
+    if (isDataLocked) return; // Don't update when photo is captured
+    
     const interval = setInterval(() => {
       setFormData((prev) => ({
         ...prev,
@@ -133,7 +141,7 @@ export const PresensiForm = () => {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [isDataLocked]);
 
   // Check login status on component mount and load ID from localStorage
   useEffect(() => {
@@ -260,15 +268,20 @@ export const PresensiForm = () => {
       const isSakitIzin =
         formData.presensi === "Sakit" || formData.presensi === "Izin";
 
+      // Use locked data if available, otherwise use current form data
+      const submitTanggal = lockedTanggal || formData.tanggal;
+      const submitTanggalEnd = lockedTanggalEnd || formData.tanggalEnd;
+      const submitJam = lockedWaktu || formData.jam;
+
       const response = await submitPresensi({
         id: formData.id,
         nama: formData.nama,
         departemen: formData.departemen,
         presensi: formData.presensi,
-        tanggal: formData.tanggal,
+        tanggal: submitTanggal,
         tanggalEnd:
-          isSakitIzin && formData.tanggalEnd ? formData.tanggalEnd : undefined,
-        jam: isSakitIzin ? undefined : formData.jam, // Jam not needed for Sakit/Izin
+          isSakitIzin && submitTanggalEnd ? submitTanggalEnd : undefined,
+        jam: isSakitIzin ? undefined : submitJam, // Jam not needed for Sakit/Izin
         lokasi: formData.lokasi,
         urlMaps: formData.urlMaps,
         latitude: formData.latitude ? parseFloat(formData.latitude) : undefined,
@@ -276,6 +289,7 @@ export const PresensiForm = () => {
           ? parseFloat(formData.longitude)
           : undefined,
         fingerprint: formData.fingerprint,
+        uuid: formData.uuid, // Include UUID in submission
         photoFileUrl: tempFileName,
       });
 
@@ -337,6 +351,7 @@ export const PresensiForm = () => {
       });
 
       retakePhoto();
+      unlockTanggalWaktu(); // Unlock data after successful submit
       setIsIdChecked(false);
       setIdNeedsRecheck(false);
     } catch (error) {
@@ -541,9 +556,9 @@ export const PresensiForm = () => {
                 {isSakitOrIzin ? (
                   <Input
                     type="date"
-                    value={formData.tanggal}
+                    value={isDataLocked ? (lockedTanggal || formData.tanggal) : formData.tanggal}
                     min={getTanggalSekarang().tanggal}
-                    disabled={!isIdChecked || idNeedsRecheck}
+                    disabled={!isIdChecked || idNeedsRecheck || isDataLocked}
                     onChange={(e) => {
                       const dateValue = e.target.value;
 
@@ -588,9 +603,9 @@ export const PresensiForm = () => {
                   </label>
                   <Input
                     type="date"
-                    value={formData.tanggalEnd}
+                    value={isDataLocked ? (lockedTanggalEnd || formData.tanggalEnd) : formData.tanggalEnd}
                     min={formData.tanggal} // Can't be before start date
-                    disabled={!isIdChecked || idNeedsRecheck}
+                    disabled={!isIdChecked || idNeedsRecheck || isDataLocked}
                     onChange={(e) => {
                       const dateValue = e.target.value;
                       let displayValue = "";
@@ -814,6 +829,8 @@ export const PresensiForm = () => {
         faceDetected={faceDetected}
         isNeedDetected={isNeedDetected}
         onCapture={capturePhoto}
+        onLock={() => lockTanggalWaktu(formData.jam)}
+        onUnlock={unlockTanggalWaktu}
         location={formData.lokasi}
         waktuLengkap={formData.jam || ""}
         imageUrl={capturedImage || ""}
