@@ -669,18 +669,25 @@ export const PresensiForm = () => {
               <RadioGroup
                 value={formData.presensi}
                 onValueChange={(value) => {
+                  const prevValue = formData.presensi;
+                  const prevIsSakitIzin = prevValue === "Sakit" || prevValue === "Izin";
+                  const newIsSakitIzin = value === "Sakit" || value === "Izin";
+                  
+                  // Check if switching between groups (Hadir/Pulang <-> Sakit/Izin)
+                  const isGroupChange = prevValue && prevIsSakitIzin !== newIsSakitIzin;
+                  
+                  // Clear photo if switching between groups
+                  if (isGroupChange && capturedImage) {
+                    retakePhoto();
+                    unlockTanggalWaktu();
+                  }
+                  
                   // Reset tanggalEnd when switching away from Sakit/Izin
                   const newFormData = {
                     ...formData,
                     presensi: value,
-                    tanggalEnd:
-                      value === "Sakit" || value === "Izin"
-                        ? formData.tanggalEnd
-                        : "",
-                    tanggalEndDisplay:
-                      value === "Sakit" || value === "Izin"
-                        ? formData.tanggalEndDisplay
-                        : "",
+                    tanggalEnd: newIsSakitIzin ? formData.tanggalEnd : "",
+                    tanggalEndDisplay: newIsSakitIzin ? formData.tanggalEndDisplay : "",
                   };
                   setFormData(newFormData);
                   setIsNeedDetected(value === "Hadir" || value === "Pulang");
