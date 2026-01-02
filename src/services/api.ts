@@ -235,8 +235,8 @@ export async function submitPresensi(presensiData: {
   nama: string;
   departemen: string;
   presensi: string;
-  tanggal: string;
-  tanggalEnd?: string; // For Sakit/Izin date range
+  tanggalStart: string;
+  tanggalList?: string[];
   jam?: string; // Optional for Sakit/Izin
   lokasi: string;
   urlMaps?: string;
@@ -253,15 +253,16 @@ export async function submitPresensi(presensiData: {
   formData.append("nama", presensiData.nama);
   formData.append("departemen", presensiData.departemen);
   formData.append("presensi", presensiData.presensi);
-  formData.append("tanggal", presensiData.tanggal);
+  formData.append("tanggalStart", presensiData.tanggalStart);
   formData.append("lokasi", presensiData.lokasi);
 
-  // tanggalEnd for Sakit/Izin
-  if (presensiData.tanggalEnd) 
-    formData.append("tanggalEnd", presensiData.tanggalEnd);
+  // tanggalList
+  if (presensiData.tanggalList && presensiData.tanggalList.length > 0) {
+    formData.append("tanggalList", JSON.stringify(presensiData.tanggalList));
+  }
+
   // jam only for Datang/Pulang
-  if (presensiData.jam) 
-    formData.append("jam", presensiData.jam);
+  if (presensiData.jam) formData.append("jam", presensiData.jam);
 
   if (presensiData.urlMaps) formData.append("urlMaps", presensiData.urlMaps);
   if (presensiData.latitude !== undefined)

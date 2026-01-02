@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Check, X, RefreshCw, CameraIcon, SwitchCamera } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, getJamSekarang } from "@/lib/utils";
 import { useEffect, useState } from "react";
 
 interface CameraModalProps {
@@ -86,7 +86,7 @@ export const CameraModal = ({
     if (waktuLocked) return;
 
     const id = setInterval(() => {
-      setWaktuLive(new Date().toLocaleString("id-ID"));
+      setWaktuLive(getJamSekarang());
     }, 1000);
 
     return () => clearInterval(id);
@@ -114,7 +114,7 @@ export const CameraModal = ({
     if (isSakitOrIzin) {
       const start = tanggalLocked ?? tanggalStartDisplay;
       const end = tanggalEndLocked ?? tanggalEndDisplay;
-      return `${start} - ${end || "..."}`;
+      return `${start} - ${end}`;
     } else {
       const date = tanggalLocked ?? tanggalStartDisplay;
       const time = waktuLocked ?? waktuLive;

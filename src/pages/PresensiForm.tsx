@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   isLoggedIn as checkIsLoggedIn,
@@ -18,7 +18,14 @@ import {
   LogIn,
   Home,
   LogOut,
+  CalendarSearch,
 } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { LoadingScreen } from "@/components/LoadingScreen";
 import { LoginModal } from "@/components/LoginModal";
@@ -29,7 +36,11 @@ import { useLocation } from "@/hooks/useLocation";
 import { useUserData } from "@/hooks/useUserData";
 import { useUser } from "@/contexts/UserContext";
 import { useDeviceIdentity } from "@/hooks/useDeviceIdentity";
-import { getTanggalSekarang } from "@/lib/utils";
+import {
+  getTanggalSekarang,
+  formatTanggalDisplay,
+  getJamSekarang,
+} from "@/lib/utils";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { toast } from "@/hooks/use-toast";
 
@@ -41,7 +52,7 @@ export const PresensiForm = () => {
     ...getTanggalSekarang(),
     tanggalEnd: "", // For Sakit/Izin date range
     tanggalEndDisplay: "", // For display
-    jam: new Date().toLocaleTimeString("en-GB", { hour12: false }),
+    jam: getJamSekarang(),
     presensi: "",
     longitude: "",
     latitude: "",
@@ -64,6 +75,13 @@ export const PresensiForm = () => {
   const [lockedTanggal, setLockedTanggal] = useState<string | null>(null);
   const [lockedTanggalEnd, setLockedTanggalEnd] = useState<string | null>(null);
   const [isDataLocked, setIsDataLocked] = useState(false);
+
+  const [openStartDate, setOpenStartDate] = useState(false);
+  const [openEndDate, setOpenEndDate] = useState(false);
+
+  const [tanggalListCheck, setTanggalListCheck] = useState<
+    { date: string; checked: boolean }[]
+  >([]);
 
   const [notification, setNotification] = useState<{
     isOpen: boolean;
@@ -127,7 +145,7 @@ export const PresensiForm = () => {
 
   const lockTanggalWaktu = (waktu: string) => {
     setLockedWaktu(waktu);
-    setLockedTanggal(formData.tanggal);
+    setLockedTanggal(formData.tanggalStart);
     setLockedTanggalEnd(formData.tanggalEnd || null);
     setIsDataLocked(true);
   };
@@ -139,6 +157,38 @@ export const PresensiForm = () => {
     setIsDataLocked(false);
   };
 
+  const normalizeJam = (jam: string) => {
+    // ambil HH:mm:ss saja kalau ada spasi / T
+    if (jam.includes(" ")) return jam.split(" ")[1];
+    if (jam.includes("T")) return jam.split("T")[1].slice(0, 8);
+    return jam;
+  };
+
+  useEffect(() => {
+    if (formData.presensi !== "Sakit" && formData.presensi !== "Izin") return;
+
+    if (!formData.tanggalStart || !formData.tanggalEnd) return;
+
+    const start = new Date(formData.tanggalStart);
+    const end = new Date(formData.tanggalEnd);
+
+    const list: { date: string; checked: boolean }[] = [];
+    let current = new Date(start);
+
+    while (current <= end) {
+      const iso = [
+        current.getFullYear(),
+        String(current.getMonth() + 1).padStart(2, "0"),
+        String(current.getDate()).padStart(2, "0"),
+      ].join("-");
+
+      list.push({ date: iso, checked: true });
+      current.setDate(current.getDate() + 1);
+    }
+
+    setTanggalListCheck(list);
+  }, [formData.presensi, formData.tanggalStart, formData.tanggalEnd]);
+
   // Real-time clock update - only when not locked
   useEffect(() => {
     if (isDataLocked) return; // Don't update when photo is captured
@@ -146,7 +196,7 @@ export const PresensiForm = () => {
     const interval = setInterval(() => {
       setFormData((prev) => ({
         ...prev,
-        jam: new Date().toLocaleTimeString("en-GB", { hour12: false }),
+        jam: getJamSekarang(),
       }));
     }, 1000);
 
@@ -169,11 +219,11 @@ export const PresensiForm = () => {
 
   // Auto-set date
   useEffect(() => {
-    const { tanggalStartDisplay, tanggal } = getTanggalSekarang();
+    const { tanggalStartDisplay, tanggalStart } = getTanggalSekarang();
     setFormData((prev) => ({
       ...prev,
       tanggalStartDisplay,
-      tanggal,
+      tanggalStart,
     }));
   }, []);
 
@@ -279,18 +329,21 @@ export const PresensiForm = () => {
         formData.presensi === "Sakit" || formData.presensi === "Izin";
 
       // Use locked data if available, otherwise use current form data
-      const submitTanggal = lockedTanggal || formData.tanggal;
-      const submitTanggalEnd = lockedTanggalEnd || formData.tanggalEnd;
-      const submitJam = lockedWaktu || formData.jam;
+      const submitTanggal = lockedTanggal || formData.tanggalStart;
+      const submitJam = normalizeJam(lockedWaktu || formData.jam);
+      const tanggalList = isSakitIzin
+        ? tanggalListCheck.filter((d) => d.checked).map((d) => d.date)
+        : undefined;
 
       const response = await submitPresensi({
         id: formData.id,
         nama: formData.nama,
         departemen: formData.departemen,
         presensi: formData.presensi,
-        tanggal: submitTanggal,
-        tanggalEnd:
-          isSakitIzin && submitTanggalEnd ? submitTanggalEnd : undefined,
+        tanggalStart: submitTanggal,
+        tanggalList: isSakitIzin
+          ? tanggalListCheck.filter((d) => d.checked).map((d) => d.date)
+          : undefined,
         jam: isSakitIzin ? undefined : submitJam, // Jam not needed for Sakit/Izin
         lokasi: formData.lokasi,
         urlMaps: formData.urlMaps,
@@ -319,7 +372,7 @@ export const PresensiForm = () => {
       setLoadingMessage("Upload Foto...");
       const uploadRes = await uploadPhoto(
         formData.id,
-        formData.tanggal,
+        formData.tanggalStart,
         formData.presensi,
         capturedImage,
         fileName
@@ -350,7 +403,7 @@ export const PresensiForm = () => {
         ...getTanggalSekarang(),
         tanggalEnd: "",
         tanggalEndDisplay: "",
-        jam: new Date().toLocaleTimeString("en-GB", { hour12: false }),
+        jam: getJamSekarang(),
         presensi: "",
         longitude: "",
         latitude: "",
@@ -388,6 +441,11 @@ export const PresensiForm = () => {
 
     if (!formData.lokasi || !formData.uuid || !formData.fingerprint) {
       return false;
+    }
+
+    if (isSakitOrIzin) {
+      const aktif = tanggalListCheck.filter((d) => d.checked);
+      if (aktif.length === 0) return false;
     }
 
     if (
@@ -563,42 +621,64 @@ export const PresensiForm = () => {
                     : "Tanggal"}
                 </label>
 
+                {/* actual date picker (hidden) */}
                 {isSakitOrIzin ? (
-                  <Input
-                    type="date"
-                    value={
-                      isDataLocked
-                        ? lockedTanggal || formData.tanggal
-                        : formData.tanggal
-                    }
-                    min={getTanggalSekarang().tanggal}
-                    disabled={!isIdChecked || idNeedsRecheck || isDataLocked}
-                    onChange={(e) => {
-                      const dateValue = e.target.value;
+                  <Popover open={openStartDate} onOpenChange={setOpenStartDate}>
+                    <PopoverTrigger asChild>
+                      <div className="relative flex items-center">
+                        <Input
+                          value={formData.tanggalStartDisplay}
+                          readOnly
+                          className="pr-10"
+                          disabled={
+                            !isIdChecked || idNeedsRecheck || isDataLocked
+                          }
+                        />
+                        <CalendarSearch className="absolute right-2 w-5 h-5 text-gray-500" />
+                      </div>
+                    </PopoverTrigger>
+                    <PopoverContent align="start" className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={
+                          formData.tanggalStart
+                            ? new Date(`${formData.tanggalStart}T00:00:00`)
+                            : undefined
+                        }
+                        onSelect={(date) => {
+                          if (!date) return;
 
-                      let displayValue = "";
-                      if (dateValue) {
-                        const [year, month, day] = dateValue.split("-");
-                        displayValue = `${day}-${month}-${year}`;
-                      }
+                          const iso = [
+                            date.getFullYear(),
+                            String(date.getMonth() + 1).padStart(2, "0"),
+                            String(date.getDate()).padStart(2, "0"),
+                          ].join("-");
 
-                      setFormData((prev) => ({
-                        ...prev,
-                        tanggal: dateValue,
-                        tanggalStartDisplay: displayValue,
+                          setFormData((prev) => {
+                            const shouldSyncEndDate =
+                              !prev.tanggalEnd || prev.tanggalEnd < iso;
 
-                        tanggalEnd:
-                          prev.tanggalEnd && prev.tanggalEnd < dateValue
-                            ? ""
-                            : prev.tanggalEnd,
-                        tanggalEndDisplay:
-                          prev.tanggalEnd && prev.tanggalEnd < dateValue
-                            ? ""
-                            : prev.tanggalEndDisplay,
-                      }));
-                    }}
-                    className="bg-background"
-                  />
+                            return {
+                              ...prev,
+                              tanggalStart: iso,
+                              tanggalStartDisplay: formatTanggalDisplay(iso),
+                              tanggalEnd: shouldSyncEndDate
+                                ? iso
+                                : prev.tanggalEnd,
+                              tanggalEndDisplay: shouldSyncEndDate
+                                ? formatTanggalDisplay(iso)
+                                : prev.tanggalEndDisplay,
+                            };
+                          });
+
+                          setOpenStartDate(false);
+                        }}
+                        disabled={(date) =>
+                          date < new Date(getTanggalSekarang().tanggalStart)
+                        }
+                      />
+                    </PopoverContent>
+                  </Popover>
                 ) : (
                   <Input
                     value={formData.tanggalStartDisplay}
@@ -615,56 +695,57 @@ export const PresensiForm = () => {
                   <label className="text-sm font-medium text-foreground">
                     Tanggal Selesai
                   </label>
-                  <Input
-                    type="date"
-                    value={
-                      isDataLocked
-                        ? lockedTanggalEnd || formData.tanggalEnd
-                        : formData.tanggalEnd
-                    }
-                    min={formData.tanggal} // Can't be before start date
-                    disabled={!isIdChecked || idNeedsRecheck || isDataLocked}
-                    onChange={(e) => {
-                      const dateValue = e.target.value;
-                      let displayValue = "";
 
-                      if (dateValue) {
-                        const [year, month, day] = dateValue.split("-");
-                        displayValue = `${day}-${month}-${year}`;
-                      }
+                  <Popover open={openEndDate} onOpenChange={setOpenEndDate}>
+                    <PopoverTrigger asChild>
+                      <div className="relative flex items-center">
+                        <Input
+                          value={formData.tanggalEndDisplay}
+                          readOnly
+                          className="pr-10"
+                          disabled={
+                            !isIdChecked || idNeedsRecheck || isDataLocked
+                          }
+                        />
+                        <CalendarSearch className="absolute right-2 w-5 h-5 text-gray-500" />
+                      </div>
+                    </PopoverTrigger>
 
-                      setFormData({
-                        ...formData,
-                        tanggalEnd: dateValue,
-                        tanggalEndDisplay: displayValue,
-                      });
-                    }}
-                    className="bg-background"
-                  />
-                  {/* Duration info */}
-                  {formData.tanggal &&
-                    formData.tanggalEnd &&
-                    (() => {
-                      const start = new Date(formData.tanggal);
-                      const end = new Date(formData.tanggalEnd);
-                      const diffTime = end.getTime() - start.getTime();
-                      const diffDays =
-                        Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 to include both days
+                    <PopoverContent align="start" className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={
+                          formData.tanggalEnd
+                            ? new Date(`${formData.tanggalEnd}T00:00:00`)
+                            : undefined
+                        }
+                        onSelect={(date) => {
+                          if (!date) return;
 
-                      if (diffDays > 0) {
-                        return (
-                          <p className="text-sm text-muted-foreground">
-                            Durasi:{" "}
-                            <span className="font-medium text-primary">
-                              {diffDays} hari
-                            </span>
-                          </p>
-                        );
-                      }
-                      return null;
-                    })()}
+                          const iso = [
+                            date.getFullYear(),
+                            String(date.getMonth() + 1).padStart(2, "0"),
+                            String(date.getDate()).padStart(2, "0"),
+                          ].join("-");
+
+                          setFormData((prev) => ({
+                            ...prev,
+                            tanggalEnd: iso,
+                            tanggalEndDisplay: formatTanggalDisplay(iso),
+                          }));
+
+                          // auto close
+                          setOpenEndDate(false);
+                        }}
+                        disabled={(date) =>
+                          date < new Date(`${formData.tanggalStart}T00:00:00`)
+                        }
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
               ) : (
+                /* Jam tetap */
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">
                     Jam
@@ -677,6 +758,71 @@ export const PresensiForm = () => {
                   />
                 </div>
               )}
+            </div>
+
+            <div className="grid grid-cols-1 gap-4">
+              {isSakitOrIzin && tanggalListCheck.length > 0 && (
+                <div className="space-y-2 rounded-md border p-3">
+                  <p className="text-sm font-medium">Hanya hari kerja</p>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-4">
+                    {tanggalListCheck.map((item, idx) => (
+                      <label
+                        key={item.date}
+                        className="flex items-center gap-2 text-sm"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={item.checked}
+                          onChange={() => {
+                            setTanggalListCheck((prev) =>
+                              prev.map((d, i) =>
+                                i === idx ? { ...d, checked: !d.checked } : d
+                              )
+                            );
+                          }}
+                          disabled={
+                            !isIdChecked || idNeedsRecheck || isDataLocked
+                          }
+                        />
+                        {formatTanggalDisplay(item.date)}
+                      </label>
+                    ))}
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">
+                      * Uncheck yang bukan hari kerja seperti libur, cuti dan
+                      off-shift
+                    </p>
+                    {isDataLocked && (
+                      <p className="text-xs text-muted-foreground">
+                        * Hapus Foto untuk mengubah tanggal
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Duration info tetap */}
+              {formData.tanggalStart &&
+                formData.tanggalEnd &&
+                (() => {
+                  const start = new Date(formData.tanggalStart);
+                  const end = new Date(formData.tanggalEnd);
+                  const diffDays =
+                    Math.floor(
+                      (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)
+                    ) + 1;
+
+                  return diffDays > 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      Durasi:{" "}
+                      <span className="font-medium text-primary">
+                        {diffDays} hari
+                      </span>
+                    </p>
+                  ) : null;
+                })()}
             </div>
 
             {/* Waktu Radio */}
@@ -692,32 +838,46 @@ export const PresensiForm = () => {
                     prevValue === "Sakit" || prevValue === "Izin";
                   const newIsSakitIzin = value === "Sakit" || value === "Izin";
 
-                  // Check if switching between groups (Hadir/Pulang <-> Sakit/Izin)
                   const isGroupChange =
                     prevValue && prevIsSakitIzin !== newIsSakitIzin;
 
-                  // Clear photo if switching between groups
                   if (isGroupChange && capturedImage) {
                     retakePhoto();
                     unlockTanggalWaktu();
-                    toast({
+                    setNotification({
+                      isOpen: true,
+                      type: "error",
                       title: "Foto dihapus",
-                      description: newIsSakitIzin
-                        ? "Silakan ambil foto dokumen surat untuk Sakit/Izin"
-                        : "Silakan ambil foto wajah untuk presensi Hadir/Pulang",
+                      message: "Terjadi perubahan keterangan, ambil ulang foto",
                     });
                   }
 
-                  // Reset tanggalEnd when switching away from Sakit/Izin
-                  const newFormData = {
-                    ...formData,
+                  // ⬇️ RESET START DATE KE TODAY JIKA KEMBALI KE DATANG / PULANG
+                  const today = getTanggalSekarang();
+
+                  setFormData((prev) => ({
+                    ...prev,
                     presensi: value,
-                    tanggalEnd: newIsSakitIzin ? formData.tanggalEnd : "",
-                    tanggalEndDisplay: newIsSakitIzin
-                      ? formData.tanggalEndDisplay
+
+                    // jika keluar dari sakit/izin → reset tanggal ke today
+                    tanggalStart: newIsSakitIzin
+                      ? prev.tanggalStart
+                      : today.tanggalStart,
+                    tanggalStartDisplay: newIsSakitIzin
+                      ? prev.tanggalStartDisplay
+                      : today.tanggalStartDisplay,
+
+                    // end date hanya valid untuk sakit/izin
+                    tanggalEnd: newIsSakitIzin
+                      ? prev.tanggalEnd || today.tanggalStart
                       : "",
-                  };
-                  setFormData(newFormData);
+                    tanggalEndDisplay: newIsSakitIzin
+                      ? formatTanggalDisplay(
+                          prev.tanggalStart || today.tanggalStart
+                        )
+                      : "",
+                  }));
+
                   setIsNeedDetected(value === "Hadir" || value === "Pulang");
                 }}
                 className="grid grid-cols-1 md:grid-cols-2 items-center justify-around"
@@ -760,8 +920,6 @@ export const PresensiForm = () => {
                     </Label>
                   </div>
                 </div>
-
-                {/* <div className="hidden md:block w-px h-6 bg-border mx-2"></div> */}
 
                 {/* <div className="flex items-center justify-around"> */}
                 <div className="grid items-center grid-cols-2 md:flex md:justify-around">
@@ -868,7 +1026,7 @@ export const PresensiForm = () => {
         onUnlock={unlockTanggalWaktu}
         location={formData.lokasi}
         tanggalStartDisplay={formData.tanggalStartDisplay}
-        tanggalEndDisplay={formData.tanggalEndDisplay}
+        tanggalEndDisplay={isSakitOrIzin ? formData.tanggalEndDisplay : ""}
         waktuLengkap={formData.jam || ""}
         imageUrl={capturedImage || ""}
         onRetake={retakePhoto}
