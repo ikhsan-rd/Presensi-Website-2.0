@@ -246,18 +246,20 @@ const Dashboard = () => {
                   Riwayat presensi
                 </p>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 md:gap-4">
                 <Button
                   onClick={() => navigate("/presensi")}
                   variant="default"
                   size="sm"
+                  className="sm:w-28"
                 >
                   <ClipboardCheck className="h-4 w-4" />
-                  <span className="inline">Presensi</span>
+                  <span className="hidden sm:inline">Presensi</span>
                 </Button>
                 <Button
-                  variant="outline"
                   onClick={() => setLogoutDialogOpen(true)}
+                  variant="outline"
+                  className="md:w-28"
                   disabled={isLoggingOut}
                   size="sm"
                 >
@@ -268,7 +270,7 @@ const Dashboard = () => {
             </div>
 
             {/* Month Selector */}
-            <div className="flex flex-wrap gap-x-2 gap-y-4 items-center justify-between md:justify-start">
+            <div className="flex flex-wrap gap-x-2 md:gap-x-4 gap-y-4 items-center justify-between md:justify-start">
               <div className="flex items-center justify-between flex-grow min-w-0">
                 <Button variant="outline" size="sm" onClick={handlePrevMonth}>
                   <ChevronLeft className="h-4 w-4" />
@@ -286,7 +288,8 @@ const Dashboard = () => {
                   {new Date(selectedYear, selectedMonth).toLocaleDateString(
                     "id-ID",
                     {
-                      month: "long",
+                      month: "short",
+                      year: "numeric",
                     }
                   )}
                 </div>
@@ -294,8 +297,13 @@ const Dashboard = () => {
                   <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={handleShowData}>
+              <div className="flex gap-2 md:gap-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="sm:w-28"
+                  onClick={handleShowData}
+                >
                   {isShowData ? (
                     <LucideEyeOff className="h-4 w-4" />
                   ) : (
@@ -308,6 +316,7 @@ const Dashboard = () => {
                 <Button
                   variant="outline"
                   size="sm"
+                  className="md:w-28"
                   onClick={loadDashboardData}
                   disabled={isLoading}
                 >
@@ -326,7 +335,7 @@ const Dashboard = () => {
 
           {isShowData && (
             <>
-              <div className="hidden md:grid md:grid-cols-[25%,auto] gap-2 mb-6 w-full">
+              <div className="hidden md:grid md:grid-cols-[25%,auto] gap-2 md:gap-4 mb-6 w-full">
                 <Card className="flex flex-col justify-center p-2 text-sm text-muted-foreground">
                   <p>{dataDiri?.id}</p>
                   <p>{dataDiri?.nama}</p>
