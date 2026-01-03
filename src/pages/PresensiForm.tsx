@@ -83,6 +83,8 @@ export const PresensiForm = () => {
     { date: string; checked: boolean }[]
   >([]);
 
+  const activeDays = tanggalListCheck.filter((d) => d.checked).length;
+
   const [notification, setNotification] = useState<{
     isOpen: boolean;
     type: "success" | "error";
@@ -138,7 +140,6 @@ export const PresensiForm = () => {
   const {
     userData,
     setIsDataChecked: setGlobalDataChecked,
-    clearUserData,
     logoutUserGlobal,
     isLoggingOut,
   } = useUser();
@@ -331,9 +332,6 @@ export const PresensiForm = () => {
       // Use locked data if available, otherwise use current form data
       const submitTanggal = lockedTanggal || formData.tanggalStart;
       const submitJam = normalizeJam(lockedWaktu || formData.jam);
-      const tanggalList = isSakitIzin
-        ? tanggalListCheck.filter((d) => d.checked).map((d) => d.date)
-        : undefined;
 
       const response = await submitPresensi({
         id: formData.id,
@@ -803,26 +801,14 @@ export const PresensiForm = () => {
                 </div>
               )}
 
-              {/* Duration info tetap */}
-              {formData.tanggalStart &&
-                formData.tanggalEnd &&
-                (() => {
-                  const start = new Date(formData.tanggalStart);
-                  const end = new Date(formData.tanggalEnd);
-                  const diffDays =
-                    Math.floor(
-                      (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)
-                    ) + 1;
-
-                  return diffDays > 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                      Durasi:{" "}
-                      <span className="font-medium text-primary">
-                        {diffDays} hari
-                      </span>
-                    </p>
-                  ) : null;
-                })()}
+              {isSakitOrIzin && activeDays > 0 && (
+                <p className="text-sm text-muted-foreground">
+                  Durasi:{" "}
+                  <span className="font-medium text-primary">
+                    {activeDays} hari
+                  </span>
+                </p>
+              )}
             </div>
 
             {/* Waktu Radio */}
