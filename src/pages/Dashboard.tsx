@@ -138,8 +138,16 @@ const Dashboard = () => {
 
   const dataDiri = dashboardData?.dataDiri;
   const records = dashboardData?.records || [];
-  const totalPages = Math.ceil(records.length / itemsPerPage);
-  const paginatedData = records.slice(
+
+  const sortedRecords = [...records].sort((a, b) => {
+    const dateA = new Date(`${a.tanggal} ${a.jam}`).getTime();
+    const dateB = new Date(`${b.tanggal} ${b.jam}`).getTime();
+    return dateB - dateA;
+  });
+
+  const totalPages = Math.ceil(sortedRecords.length / itemsPerPage);
+
+  const paginatedData = sortedRecords.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
